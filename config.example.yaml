@@ -1,0 +1,21 @@
+server:
+  http_port: 8080
+  grpc_port: 9090
+redis:
+  mode: "single"          # "single" or "cluster"
+  addrs: ["localhost:6379"]
+  dial_timeout_ms: 200
+  command_timeout_ms: 100
+limiter:
+  default_capacity: 100
+  default_refill_per_second: 10
+  window_size_ms: 1000
+  max_requests_per_window: 100
+  sync_interval_ms: 100
+failure_mode: "fail_open"   # "fail_open" or "fail_closed"
+health:
+  unhealthy_threshold: 3
+  check_interval_ms: 2000
+observability:
+  log_level: "info"
+  metrics_enabled: true

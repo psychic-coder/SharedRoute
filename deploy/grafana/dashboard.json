@@ -1,0 +1,53 @@
+{
+  "title": "ShardRoute Metrics",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Rate (Allowed vs Rejected)",
+      "targets": [
+        {
+          "expr": "rate(shardroute_requests_total[1m])",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Latency (P50 & P99)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(shardroute_request_duration_seconds_bucket[1m]))",
+          "legendFormat": "P99"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(shardroute_request_duration_seconds_bucket[1m]))",
+          "legendFormat": "P50"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Local Cache Hits vs Misses",
+      "targets": [
+        {
+          "expr": "rate(shardroute_local_cache_hit_total[1m])",
+          "legendFormat": "Hits"
+        },
+        {
+          "expr": "rate(shardroute_local_cache_miss_total[1m])",
+          "legendFormat": "Misses"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Node Health",
+      "targets": [
+        {
+          "expr": "shardroute_node_health_status",
+          "legendFormat": "Health (1=Healthy, 0=Degraded)"
+        }
+      ]
+    }
+  ]
+}

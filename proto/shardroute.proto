@@ -1,0 +1,21 @@
+syntax = "proto3";
+package shardroute.v1;
+option go_package = "github.com/psychic-coder/shardroute/proto";
+
+service RateLimiter {
+  rpc Check(CheckRequest) returns (CheckResponse);
+  rpc StreamCheck(stream CheckRequest) returns (stream CheckResponse);
+}
+
+message CheckRequest {
+  string key = 1;
+  int32 cost = 2;
+  string limit_name = 3;
+}
+
+message CheckResponse {
+  bool allowed = 1;
+  double tokens_remaining = 2;
+  int64 retry_after_ms = 3;
+  string error = 4;
+}

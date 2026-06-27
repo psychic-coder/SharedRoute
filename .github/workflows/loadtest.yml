@@ -1,0 +1,31 @@
+name: Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL to run load test against'
+        required: true
+        default: 'https://shardroute-app.fly.dev/v1/check'
+
+jobs:
+  k6_load_test:
+    name: k6 Load Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run k6 load test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: loadtest/k6_optimized.js
+          flags: --out json=results.json
+        env:
+          TARGET_URL: ${{ github.event.inputs.target_url }}
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: results.json
