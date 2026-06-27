@@ -182,6 +182,246 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 ```
 
+---
+
+## 🟦 Using ShardRoute in a Node.js / TypeScript Backend
+
+If you are running a Node.js + TypeScript backend (Express, Fastify, NestJS, etc.), ShardRoute plugs in as a lightweight middleware. No SDK required — it's just an HTTP call.
+
+### 1. Create a ShardRoute client utility
+
+```typescript
+// src/lib/shardroute.ts
+
+interface ShardRouteResponse {
+  allowed: boolean;
+  tokens_remaining: number;
+  retry_after_ms?: number;
+  error?: string;
+}
+
+interface CheckOptions {
+  key: string;       // unique identifier — user ID, API key, or IP address
+  cost?: number;     // how many tokens this request costs (default: 1)
+  limitName: string; // which limit config to apply
+}
+
+const SHARDROUTE_URL = process.env.SHARDROUTE_URL ?? "http://localhost:8080";
+
+export async function checkRateLimit(opts: CheckOptions): Promise<ShardRouteResponse> {
+  const res = await fetch(`${SHARDROUTE_URL}/v1/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      key: opts.key,
+      cost: opts.cost ?? 1,
+      limit_name: opts.limitName,
+    }),
+    // Fail fast — don't let ShardRoute block your requests if it's slow
+    signal: AbortSignal.timeout(200),
+  });
+
+  if (!res.ok) {
+    // ShardRoute itself is down — decide your own fallback behaviour here
+    throw new Error(`ShardRoute returned ${res.status}`);
+  }
+
+  return res.json() as Promise<ShardRouteResponse>;
+}
+```
+
+### 2. Express Middleware
+
+Drop this into any Express route or router-level to protect an entire group of endpoints.
+
+```typescript
+// src/middleware/rateLimiter.ts
+import { Request, Response, NextFunction } from "express";
+import { checkRateLimit } from "../lib/shardroute";
+
+export function rateLimiter(limitName: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    // Use API key, user ID, or fall back to IP
+    const key =
+      (req.headers["x-api-key"] as string) ??
+      req.user?.id ??
+      req.ip ??
+      "anonymous";
+
+    try {
+      const result = await checkRateLimit({ key, limitName });
+
+      // Always forward remaining tokens for clients to back off gracefully
+      res.setHeader("X-RateLimit-Remaining", result.tokens_remaining);
+
+      if (!result.allowed) {
+        if (result.retry_after_ms) {
+          res.setHeader("Retry-After", Math.ceil(result.retry_after_ms / 1000));
+        }
+        return res.status(429).json({
+          error: "Too Many Requests",
+          retry_after_ms: result.retry_after_ms,
+        });
+      }
+
+      next();
+    } catch (err) {
+      // ShardRoute is unreachable — fail open to keep your API alive
+      console.error("[ShardRoute] Unreachable, failing open:", err);
+      next();
+    }
+  };
+}
+```
+
+```typescript
+// src/routes/api.ts
+import { Router } from "express";
+import { rateLimiter } from "../middleware/rateLimiter";
+
+const router = Router();
+
+// Protect a single route
+router.get("/data", rateLimiter("api_data"), (req, res) => {
+  res.json({ data: "..." });
+});
+
+// Protect a whole router (every route under /api/v1 gets rate-limited)
+router.use(rateLimiter("global_api"));
+```
+
+### 3. Fastify Plugin
+
+```typescript
+// src/plugins/rateLimiter.ts
+import fp from "fastify-plugin";
+import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
+import { checkRateLimit } from "../lib/shardroute";
+
+const rateLimiterPlugin: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
+    const key =
+      request.headers["x-api-key"] as string ??
+      request.ip;
+
+    try {
+      const result = await checkRateLimit({ key, limitName: "global_api" });
+
+      reply.header("X-RateLimit-Remaining", result.tokens_remaining);
+
+      if (!result.allowed) {
+        if (result.retry_after_ms) {
+          reply.header("Retry-After", Math.ceil(result.retry_after_ms / 1000));
+        }
+        return reply.status(429).send({ error: "Too Many Requests" });
+      }
+    } catch {
+      // Fail open — ShardRoute being down should not take your API down
+    }
+  });
+};
+
+export default fp(rateLimiterPlugin);
+```
+
+```typescript
+// src/app.ts
+import Fastify from "fastify";
+import rateLimiterPlugin from "./plugins/rateLimiter";
+
+const app = Fastify();
+app.register(rateLimiterPlugin);
+```
+
+### 4. NestJS Guard
+
+```typescript
+// src/guards/rate-limit.guard.ts
+import {
+  Injectable, CanActivate, ExecutionContext,
+  HttpException, HttpStatus,
+} from "@nestjs/common";
+import { checkRateLimit } from "../lib/shardroute";
+
+@Injectable()
+export class RateLimitGuard implements CanActivate {
+  constructor(private readonly limitName: string = "global_api") {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest();
+    const res = context.switchToHttp().getResponse();
+
+    const key = req.headers["x-api-key"] ?? req.ip;
+
+    try {
+      const result = await checkRateLimit({ key, limitName: this.limitName });
+
+      res.setHeader("X-RateLimit-Remaining", result.tokens_remaining);
+
+      if (!result.allowed) {
+        if (result.retry_after_ms) {
+          res.setHeader("Retry-After", Math.ceil(result.retry_after_ms / 1000));
+        }
+        throw new HttpException("Too Many Requests", HttpStatus.TOO_MANY_REQUESTS);
+      }
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      // ShardRoute unreachable — fail open
+    }
+
+    return true;
+  }
+}
+```
+
+```typescript
+// Apply globally in main.ts
+app.useGlobalGuards(new RateLimitGuard("global_api"));
+
+// Or per-controller / per-route
+@UseGuards(new RateLimitGuard("payment_api"))
+@Post("/charge")
+async charge() { ... }
+```
+
+### 5. Environment Variables
+
+Add these to your `.env`:
+
+```bash
+# URL of your ShardRoute instance
+SHARDROUTE_URL=http://shardroute:8080
+
+# In Docker Compose, use the service name:
+# SHARDROUTE_URL=http://shardroute-1:8080
+```
+
+### 6. Running ShardRoute alongside your Node.js app in Docker Compose
+
+```yaml
+# Add to your existing docker-compose.yml
+services:
+  your-node-api:
+    build: .
+    environment:
+      - SHARDROUTE_URL=http://shardroute:8080
+    depends_on:
+      - shardroute
+
+  shardroute:
+    image: ghcr.io/psychic-coder/shardroute:latest
+    environment:
+      - SHARDBROUTE_REDIS_ADDRS=redis:6379
+      - SHARDBROUTE_FAILURE_MODE=fail_open
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+```
+
 ### Configuration
 
 Copy `config.example.yaml` and adjust for your environment:
