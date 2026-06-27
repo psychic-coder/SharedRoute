@@ -56,10 +56,10 @@ func (s *HTTPServer) check(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.Cache != nil {
-		if s.Cache.CheckLocal(req.Key, req.Cost) {
+		if allowed, rem := s.Cache.CheckLocal(req.Key, req.Cost); allowed {
 			metrics.LocalCacheHit.Inc()
 			metrics.RequestsTotal.WithLabelValues("allowed").Inc()
-			_ = json.NewEncoder(w).Encode(checkResp{Allowed: true, TokensRemaining: 0})
+			_ = json.NewEncoder(w).Encode(checkResp{Allowed: true, TokensRemaining: rem})
 			return
 		}
 		metrics.LocalCacheMiss.Inc()

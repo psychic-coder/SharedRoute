@@ -41,7 +41,7 @@ func (c *LocalCache) Touch(key string) {
 	c.items[key].LastTouch = now
 }
 
-func (c *LocalCache) CheckLocal(key string, cost float64) bool {
+func (c *LocalCache) CheckLocal(key string, cost float64) (bool, float64) {
 	now := time.Now()
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -53,9 +53,9 @@ func (c *LocalCache) CheckLocal(key string, cost float64) bool {
 	if ac.Tokens >= cost {
 		ac.Tokens -= cost
 		ac.LastTouch = now
-		return true
+		return true, ac.Tokens
 	}
-	return false
+	return false, ac.Tokens
 }
 
 // Bounded-overrun tradeoff: requests may be admitted optimistically between syncs,

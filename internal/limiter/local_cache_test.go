@@ -42,9 +42,14 @@ func TestLocalCacheStaleState(t *testing.T) {
 	cache.Stop()
 
 	// Should still serve from stale state
-	require.True(t, cache.CheckLocal("test", 5))
-	require.True(t, cache.CheckLocal("test", 5))
-	require.False(t, cache.CheckLocal("test", 1)) // tokens exhausted locally
+	allowed1, _ := cache.CheckLocal("test", 5)
+	require.True(t, allowed1)
+	
+	allowed2, _ := cache.CheckLocal("test", 5)
+	require.True(t, allowed2)
+	
+	allowed3, _ := cache.CheckLocal("test", 1)
+	require.False(t, allowed3) // tokens exhausted locally
 }
 
 func BenchmarkLocalCacheVSRedis(b *testing.B) {

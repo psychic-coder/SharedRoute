@@ -30,10 +30,10 @@ func (g *GRPCServer) Check(ctx context.Context, req *pb.CheckRequest) (*pb.Check
 	}
 
 	if g.Cache != nil {
-		if g.Cache.CheckLocal(req.Key, float64(req.Cost)) {
+		if allowed, rem := g.Cache.CheckLocal(req.Key, float64(req.Cost)); allowed {
 			metrics.LocalCacheHit.Inc()
 			metrics.RequestsTotal.WithLabelValues("allowed").Inc()
-			return &pb.CheckResponse{Allowed: true}, nil
+			return &pb.CheckResponse{Allowed: true, TokensRemaining: rem}, nil
 		}
 		metrics.LocalCacheMiss.Inc()
 	}
