@@ -85,12 +85,25 @@ func (c *LocalCache) Stop() {
 }
 
 func (c *LocalCache) syncOnce(ctx context.Context) {
-	c.mu.RLock()
+	c.mu.Lock()
+	now := time.Now()
+	evictThreshold := 5 * time.Minute
+	
+	var toEvict []string
 	keys := make([]string, 0, len(c.items))
-	for k := range c.items {
-		keys = append(keys, k)
+	
+	for k, ac := range c.items {
+		if now.Sub(ac.LastTouch) > evictThreshold {
+			toEvict = append(toEvict, k)
+		} else {
+			keys = append(keys, k)
+		}
 	}
-	c.mu.RUnlock()
+	
+	for _, k := range toEvict {
+		delete(c.items, k)
+	}
+	c.mu.Unlock()
 
 	for _, k := range keys {
 		res, err := c.store.CheckAndDecrement(ctx, k, c.cfg, 1) // Note: this currently adds 1 to the Redis window
