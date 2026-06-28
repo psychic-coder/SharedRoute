@@ -443,6 +443,7 @@ limiter:
   window_size_ms: 1000
   max_requests_per_window: 100
   sync_interval_ms: 100          # local cache reconciliation interval
+  cache_mode: "local_cache"      # "local_cache" or "direct"
 
 failure_mode: "fail_open"        # "fail_open" or "fail_closed"
 
@@ -469,15 +470,15 @@ cd shardroute
 # Start a 3-node cluster + Redis locally
 cd deploy && docker compose up -d --build
 
-# Test the rate limiter
-curl -X POST http://localhost:8081/v1/check \
+# Test the rate limiter (port 8081 = direct, port 8082 = local cache)
+curl -X POST http://localhost:8082/v1/check \
   -H "Content-Type: application/json" \
   -d '{"key": "user_123", "cost": 1, "limit_name": "api"}'
 # → {"allowed":true,"tokens_remaining":99}
 
 # Hammer the same key to trigger the limit
 for i in $(seq 1 110); do
-  curl -s -X POST http://localhost:8081/v1/check \
+  curl -s -X POST http://localhost:8082/v1/check \
     -H "Content-Type: application/json" \
     -d '{"key": "user_123", "cost": 1, "limit_name": "api"}' | jq .allowed
 done
@@ -552,8 +553,9 @@ Import `deploy/grafana/dashboard.json` into Grafana to get real-time panels for:
 make build
 ./bin/shardroute-bench -c 100 -d 30s -url http://localhost:8081/v1/check
 
-# k6 baseline — 10,000 concurrent clients
-k6 run loadtest/k6_baseline.js
+# Compare direct Redis vs. local caching performance
+k6 run loadtest/k6_baseline.js --env TARGET_PORT=8081
+k6 run loadtest/k6_optimized.js --env TARGET_PORT=8082
 
 # Chaos test — kills Redis mid-load-test to validate fail-open/closed behavior
 bash loadtest/chaos_redis_kill.sh
