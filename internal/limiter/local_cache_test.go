@@ -35,13 +35,11 @@ func TestLocalCacheStaleState(t *testing.T) {
 	cache.StartSync(syncCtx)
 	
 	cache.Touch("test")
-	time.Sleep(20 * time.Millisecond) // Let it sync once
+	time.Sleep(20 * time.Millisecond)
 
-	// Kill sync goroutine
 	cancel()
 	cache.Stop()
 
-	// Should still serve from stale state
 	allowed1, _ := cache.CheckLocal("test", 5)
 	require.True(t, allowed1)
 	
@@ -49,7 +47,7 @@ func TestLocalCacheStaleState(t *testing.T) {
 	require.True(t, allowed2)
 	
 	allowed3, _ := cache.CheckLocal("test", 1)
-	require.False(t, allowed3) // tokens exhausted locally
+	require.False(t, allowed3)
 }
 
 func BenchmarkLocalCacheVSRedis(b *testing.B) {
@@ -86,8 +84,7 @@ func BenchmarkLocalCacheVSRedis(b *testing.B) {
 	})
 }
 
-// BenchmarkLocalCacheHit measures the pure in-memory local cache path (no network I/O).
-// Run with: go test ./internal/limiter/... -bench=BenchmarkLocalCacheHit -benchtime=10s -cpu=1,4,8
+
 func BenchmarkLocalCacheHit(b *testing.B) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
@@ -106,7 +103,7 @@ func BenchmarkLocalCacheHit(b *testing.B) {
 	store := NewRedisStore(client)
 	require.NoError(b, store.Load(ctx))
 
-	// Large capacity so the cache never exhausts tokens during the benchmark run.
+
 	cfg := LimitConfig{Capacity: 1e9, SyncIntervalMS: 10000}
 	cache := NewLocalCache(store, cfg)
 	cache.Touch("bench_cache")
@@ -119,8 +116,7 @@ func BenchmarkLocalCacheHit(b *testing.B) {
 	})
 }
 
-// BenchmarkRedisDirectHit measures the Redis round-trip path (Lua EVALSHA over loopback).
-// Run with: go test ./internal/limiter/... -bench=BenchmarkRedisDirectHit -benchtime=10s -cpu=1,4,8
+
 func BenchmarkRedisDirectHit(b *testing.B) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
@@ -139,7 +135,7 @@ func BenchmarkRedisDirectHit(b *testing.B) {
 	store := NewRedisStore(client)
 	require.NoError(b, store.Load(ctx))
 
-	// Large capacity so the limit is never hit during the benchmark.
+
 	cfg := LimitConfig{Capacity: 1e9, SyncIntervalMS: 0}
 
 	b.ResetTimer()

@@ -106,7 +106,7 @@ func (c *LocalCache) syncOnce(ctx context.Context) {
 	c.mu.Unlock()
 
 	for _, k := range keys {
-		res, err := c.store.CheckAndDecrement(ctx, k, c.cfg, 1) // Note: this currently adds 1 to the Redis window
+		res, err := c.store.CheckAndDecrement(ctx, k, c.cfg, 1)
 		if err == nil {
 			c.mu.Lock()
 			if ac, ok := c.items[k]; ok {

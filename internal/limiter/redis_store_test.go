@@ -15,7 +15,7 @@ func TestRedisConcurrentAtomicity(t *testing.T) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(t, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer container.Terminate(ctx)
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -24,7 +24,7 @@ func TestRedisConcurrentAtomicity(t *testing.T) {
 	require.NoError(t, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer client.Close()
 
 	store := NewRedisStore(client)
 	require.NoError(t, store.Load(ctx))
@@ -44,13 +44,13 @@ func TestRedisConcurrentAtomicity(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			<-start // block until barrier is lifted
+			<-start
 			res, err := store.CheckAndDecrement(ctx, key, cfg, 1)
 			require.NoError(t, err)
 			resultCh <- res.Allowed
 		}()
 	}
-	close(start) // release all 200 goroutines simultaneously
+	close(start)
 	wg.Wait()
 	close(resultCh)
 
@@ -132,14 +132,10 @@ func TestRedisWindowBoundary(t *testing.T) {
 
 // --- Alias wrappers so verification prompt's -run flags work ---
 
-// TestConcurrentCheckAndDecrement is an alias for TestRedisConcurrentAtomicity.
-// Proves: Lua EVALSHA is atomic — exactly 100 of 200 simultaneous goroutines are allowed.
+
 func TestConcurrentCheckAndDecrement(t *testing.T) { TestRedisConcurrentAtomicity(t) }
 
-// TestNoScriptRecovery is an alias for TestRedisNOSCRIPTRecovery.
-// Proves: after SCRIPT FLUSH the store auto-reloads the Lua SHA and continues correctly.
+
 func TestNoScriptRecovery(t *testing.T) { TestRedisNOSCRIPTRecovery(t) }
 
-// TestSlidingWindowBoundaryBurst is an alias for TestRedisWindowBoundary.
-// Proves: the Redis sliding-window check correctly rejects a 4th request within the same 1000ms window.
 func TestSlidingWindowBoundaryBurst(t *testing.T) { TestRedisWindowBoundary(t) }

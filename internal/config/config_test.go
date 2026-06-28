@@ -18,15 +18,15 @@ func TestConfigValidationFailures(t *testing.T) {
 
 	cfg = Default()
 	cfg.Limiter.SyncIntervalMS = 0
-	require.Error(t, cfg.Validate()) // sync_interval_ms required in local_cache mode
+	require.Error(t, cfg.Validate())
 
 	cfg = Default()
 	cfg.Limiter.CacheMode = "direct"
 	cfg.Limiter.SyncIntervalMS = 0
-	require.NoError(t, cfg.Validate()) // direct mode: SyncIntervalMS not required
+	require.NoError(t, cfg.Validate())
 
 	cfg = Default()
-	cfg.Limiter.CacheMode = "turbo" // invalid value
+	cfg.Limiter.CacheMode = "turbo"
 	require.Error(t, cfg.Validate())
 
 	cfg = Default()

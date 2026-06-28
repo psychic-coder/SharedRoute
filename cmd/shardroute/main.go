@@ -75,8 +75,6 @@ func main() {
 		SyncIntervalMS:       cfg.Limiter.SyncIntervalMS,
 	}
 
-	// When cache_mode=="direct" the local ApproximateCounter is not initialized.
-	// Every request calls CheckAndDecrement on Redis directly — no in-process state.
 	var cache *limiter.LocalCache
 	syncCtx, syncCancel := context.WithCancel(context.Background())
 	if cfg.Limiter.CacheMode != "direct" {
