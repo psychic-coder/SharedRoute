@@ -87,3 +87,18 @@ func TestFailureModeBackgroundRecovery(t *testing.T) {
 	cancel()
 	f.Stop()
 }
+
+// --- Alias wrappers so verification prompt's -run flags work ---
+
+// TestFailOpen is an alias for TestFailureModeFailOpen.
+// Proves: on Redis error with fail_open mode, requests are allowed and degraded flag triggers at threshold=3.
+func TestFailOpen(t *testing.T) { TestFailureModeFailOpen(t) }
+
+// TestFailClosed is an alias for TestFailureModeFailClosed.
+// Proves: on Redis error with fail_closed mode, requests are rejected with "rate limit backend unavailable".
+func TestFailClosed(t *testing.T) { TestFailureModeFailClosed(t) }
+
+// TestFlappingPrevention is an alias for TestFailureModeFlappingPrevention.
+// Proves: a success resets the consecutive failure counter, preventing flapping on transient errors.
+// Sequence: fail, success (reset), fail, fail → NOT degraded; then fail → degraded.
+func TestFlappingPrevention(t *testing.T) { TestFailureModeFlappingPrevention(t) }

@@ -57,7 +57,7 @@ func main() {
 			WriteTimeout: time.Duration(cfg.Redis.CommandTimeoutMS) * time.Millisecond,
 		})
 	}
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	store := limiter.NewRedisStore(redisClient)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

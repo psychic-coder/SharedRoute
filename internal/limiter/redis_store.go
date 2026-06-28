@@ -66,8 +66,8 @@ func (r *RedisStore) CheckAndDecrement(ctx context.Context, key string, cfg Limi
 
 	allowed := fmt.Sprint(arr[0]) == "1"
 	var tokens float64
-	fmt.Sscan(fmt.Sprint(arr[1]), &tokens)
+	_, _ = fmt.Sscan(fmt.Sprint(arr[1]), &tokens)
 	var retry int64
-	fmt.Sscan(fmt.Sprint(arr[2]), &retry)
+	_, _ = fmt.Sscan(fmt.Sprint(arr[2]), &retry)
 	return Result{Allowed: allowed, TokensRemaining: tokens, RetryAfterMillis: retry}, nil
 }

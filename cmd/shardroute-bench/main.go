@@ -31,7 +31,7 @@ func main() {
 	var allowed, rejected, errors uint64
 	
 	area, _ := pterm.DefaultArea.Start()
-	defer area.Stop()
+	defer func() { _ = area.Stop() }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), *duration)
 	defer cancel()
@@ -58,14 +58,15 @@ func main() {
 						atomic.AddUint64(&errors, 1)
 						continue
 					}
-					if resp.StatusCode == 200 {
+					switch resp.StatusCode {
+					case 200:
 						atomic.AddUint64(&allowed, 1)
-					} else if resp.StatusCode == 429 {
+					case 429:
 						atomic.AddUint64(&rejected, 1)
-					} else {
+					default:
 						atomic.AddUint64(&errors, 1)
 					}
-					resp.Body.Close()
+					_ = resp.Body.Close()
 				}
 			}
 		}(i)
@@ -97,7 +98,7 @@ func main() {
 	}()
 
 	wg.Wait()
-	area.Stop()
+	_ = area.Stop()
 
 	pterm.Success.Println("Benchmark Complete!")
 	a := atomic.LoadUint64(&allowed)
@@ -112,5 +113,5 @@ func main() {
 		{"Allowed", fmt.Sprintf("%d", a)},
 		{"Rejected", fmt.Sprintf("%d", r)},
 		{"Errors", fmt.Sprintf("%d", e)},
-	}).Render()
+	}).Render() //nolint:errcheck // pterm table render errors are non-fatal display failures
 }

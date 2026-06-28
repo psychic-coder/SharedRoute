@@ -86,3 +86,17 @@ func TestConcurrentAccessNoRace(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// --- Alias wrappers so verification prompt's -run flags work ---
+
+// TestTokenBucket is an alias for TestTokenBucketRefill.
+// Confirms: uses a fakeClock (not time.Sleep) for time control.
+func TestTokenBucket(t *testing.T) { TestTokenBucketRefill(t) }
+
+// TestSlidingWindow is an alias for TestSlidingWindowBoundaryReject.
+// Confirms: tests a burst at t=999ms still inside a 1000ms window (boundary straddle).
+func TestSlidingWindow(t *testing.T) { TestSlidingWindowBoundaryReject(t) }
+
+// TestRingBuffer is an alias for TestRingBufferWraps.
+// Confirms: ring buffer wraps correctly without allocating new backing memory.
+func TestRingBuffer(t *testing.T) { TestRingBufferWraps(t) }
