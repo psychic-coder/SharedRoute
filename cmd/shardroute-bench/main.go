@@ -106,12 +106,12 @@ func main() {
 	e := atomic.LoadUint64(&errors)
 	elapsed := time.Since(start).Seconds()
 	
-	pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
+	_ = pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
 		{"Metric", "Value"},
 		{"Total Requests", fmt.Sprintf("%d", a+r+e)},
 		{"Requests/sec", fmt.Sprintf("%.2f", float64(a+r+e)/elapsed)},
 		{"Allowed", fmt.Sprintf("%d", a)},
 		{"Rejected", fmt.Sprintf("%d", r)},
 		{"Errors", fmt.Sprintf("%d", e)},
-	}).Render() //nolint:errcheck // pterm table render errors are non-fatal display failures
+	}).Render()
 }

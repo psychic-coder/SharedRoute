@@ -14,7 +14,7 @@ func TestLocalCacheStaleState(t *testing.T) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(t, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -23,7 +23,7 @@ func TestLocalCacheStaleState(t *testing.T) {
 	require.NoError(t, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(t, store.Load(ctx))
@@ -54,7 +54,7 @@ func BenchmarkLocalCacheVSRedis(b *testing.B) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(b, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(b, err)
@@ -63,7 +63,7 @@ func BenchmarkLocalCacheVSRedis(b *testing.B) {
 	require.NoError(b, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(b, store.Load(ctx))
@@ -89,7 +89,7 @@ func BenchmarkLocalCacheHit(b *testing.B) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(b, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(b, err)
@@ -98,7 +98,7 @@ func BenchmarkLocalCacheHit(b *testing.B) {
 	require.NoError(b, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(b, store.Load(ctx))
@@ -121,7 +121,7 @@ func BenchmarkRedisDirectHit(b *testing.B) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(b, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(b, err)
@@ -130,7 +130,7 @@ func BenchmarkRedisDirectHit(b *testing.B) {
 	require.NoError(b, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(b, store.Load(ctx))

@@ -15,7 +15,7 @@ func TestRedisConcurrentAtomicity(t *testing.T) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(t, err)
-	defer container.Terminate(ctx)
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -24,7 +24,7 @@ func TestRedisConcurrentAtomicity(t *testing.T) {
 	require.NoError(t, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(t, store.Load(ctx))
@@ -71,7 +71,7 @@ func TestRedisNOSCRIPTRecovery(t *testing.T) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(t, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestRedisNOSCRIPTRecovery(t *testing.T) {
 	require.NoError(t, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(t, store.Load(ctx))
@@ -102,7 +102,7 @@ func TestRedisWindowBoundary(t *testing.T) {
 	ctx := context.Background()
 	container, err := testredis.Run(ctx, "redis:7-alpine")
 	require.NoError(t, err)
-	defer container.Terminate(ctx) //nolint:errcheck
+	defer func() { _ = container.Terminate(ctx) }()
 
 	connStr, err := container.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestRedisWindowBoundary(t *testing.T) {
 	require.NoError(t, err)
 
 	client := redis.NewClient(opts)
-	defer client.Close() //nolint:errcheck
+	defer func() { _ = client.Close() }()
 
 	store := NewRedisStore(client)
 	require.NoError(t, store.Load(ctx))
