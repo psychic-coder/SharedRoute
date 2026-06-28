@@ -26,6 +26,7 @@ type Config struct {
 		WindowSizeMS            int64   `yaml:"window_size_ms"`
 		MaxRequestsPerWindow    int     `yaml:"max_requests_per_window"`
 		SyncIntervalMS          int     `yaml:"sync_interval_ms"`
+		CacheMode               string  `yaml:"cache_mode"`
 	} `yaml:"limiter"`
 	FailureMode string `yaml:"failure_mode"`
 	Health struct {
@@ -51,6 +52,7 @@ func Default() Config {
 	c.Limiter.WindowSizeMS = 1000
 	c.Limiter.MaxRequestsPerWindow = 100
 	c.Limiter.SyncIntervalMS = 100
+	c.Limiter.CacheMode = "local_cache"
 	c.FailureMode = "fail_open"
 	c.Health.UnhealthyThreshold = 3
 	c.Health.CheckIntervalMS = 2000
@@ -81,6 +83,7 @@ func Load(path string) (Config, error) {
 	overrideInt64(&cfg.Limiter.WindowSizeMS, "SHARDBROUTE_LIMITER_WINDOW_SIZE_MS")
 	overrideInt(&cfg.Limiter.MaxRequestsPerWindow, "SHARDBROUTE_LIMITER_MAX_REQUESTS_PER_WINDOW")
 	overrideInt(&cfg.Limiter.SyncIntervalMS, "SHARDBROUTE_LIMITER_SYNC_INTERVAL_MS")
+	overrideString(&cfg.Limiter.CacheMode, "SHARDBROUTE_LIMITER_CACHE_MODE")
 	overrideString(&cfg.FailureMode, "SHARDBROUTE_FAILURE_MODE")
 	overrideInt(&cfg.Health.UnhealthyThreshold, "SHARDBROUTE_HEALTH_UNHEALTHY_THRESHOLD")
 	overrideInt(&cfg.Health.CheckIntervalMS, "SHARDBROUTE_HEALTH_CHECK_INTERVAL_MS")
@@ -93,7 +96,11 @@ func (c Config) Validate() error {
 	if c.FailureMode != "fail_open" && c.FailureMode != "fail_closed" {
 		return errors.New("invalid failure_mode")
 	}
-	if c.Limiter.SyncIntervalMS == 0 {
+	if c.Limiter.CacheMode != "" && c.Limiter.CacheMode != "local_cache" && c.Limiter.CacheMode != "direct" {
+		return errors.New("invalid limiter.cache_mode: must be \"local_cache\" or \"direct\"")
+	}
+	// SyncIntervalMS is only required when the local cache is active.
+	if c.Limiter.CacheMode != "direct" && c.Limiter.SyncIntervalMS == 0 {
 		return errors.New("sync_interval_ms must be > 0")
 	}
 	if len(c.Redis.Addrs) == 0 || c.Redis.Addrs[0] == "" {

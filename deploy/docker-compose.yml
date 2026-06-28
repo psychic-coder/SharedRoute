@@ -1,5 +1,8 @@
 version: "3.8"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared Redis instance used by both comparison services.
+# ─────────────────────────────────────────────────────────────────────────────
 services:
   redis:
     image: redis:7-alpine
@@ -11,17 +14,71 @@ services:
       timeout: 3s
       retries: 5
 
-  shardroute-1:
+  # ── DIRECT (no local cache) ────────────────────────────────────────────────
+  # cache_mode=direct: every /v1/check call executes the Lua EVALSHA round-trip.
+  # This is the baseline — measures raw Redis network + serialization latency.
+  shardroute-direct:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
     environment:
-      - SHARDBROUTE_HTTP_PORT=8081
-      - SHARDBROUTE_GRPC_PORT=9091
+      - SHARDBROUTE_HTTP_PORT=8080
+      - SHARDBROUTE_GRPC_PORT=9090
+      - SHARDBROUTE_REDIS_ADDRS=redis:6379
+      - SHARDBROUTE_LIMITER_CACHE_MODE=direct
+      - SHARDBROUTE_FAILURE_MODE=fail_open
+    ports:
+      - "8081:8080"
+      - "9091:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── LOCAL CACHE (optimized) ────────────────────────────────────────────────
+  # cache_mode=local_cache: requests are served from the in-process
+  # ApproximateCounter when tokens are available; Redis is only hit on cache
+  # miss or at sync_interval_ms tick. This is the optimized comparison target.
+  shardroute-cached:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      - SHARDBROUTE_HTTP_PORT=8080
+      - SHARDBROUTE_GRPC_PORT=9090
+      - SHARDBROUTE_REDIS_ADDRS=redis:6379
+      - SHARDBROUTE_LIMITER_CACHE_MODE=local_cache
+      - SHARDBROUTE_LIMITER_SYNC_INTERVAL_MS=100
+      - SHARDBROUTE_FAILURE_MODE=fail_open
+    ports:
+      - "8082:8080"
+      - "9092:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── LEGACY MULTI-INSTANCE (kept for chaos / multi-node tests) ─────────────
+  shardroute-1:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    profiles: ["multi"]
+    environment:
+      - SHARDBROUTE_HTTP_PORT=8080
+      - SHARDBROUTE_GRPC_PORT=9090
       - SHARDBROUTE_REDIS_ADDRS=redis:6379
     ports:
-      - "8081:8081"
-      - "9091:9091"
+      - "8083:8080"
+      - "9093:9090"
     depends_on:
       redis:
         condition: service_healthy
@@ -30,28 +87,14 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    profiles: ["multi"]
     environment:
-      - SHARDBROUTE_HTTP_PORT=8082
-      - SHARDBROUTE_GRPC_PORT=9092
+      - SHARDBROUTE_HTTP_PORT=8080
+      - SHARDBROUTE_GRPC_PORT=9090
       - SHARDBROUTE_REDIS_ADDRS=redis:6379
     ports:
-      - "8082:8082"
-      - "9092:9092"
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  shardroute-3:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-    environment:
-      - SHARDBROUTE_HTTP_PORT=8083
-      - SHARDBROUTE_GRPC_PORT=9093
-      - SHARDBROUTE_REDIS_ADDRS=redis:6379
-    ports:
-      - "8083:8083"
-      - "9093:9093"
+      - "8084:8080"
+      - "9094:9090"
     depends_on:
       redis:
         condition: service_healthy
